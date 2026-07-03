@@ -1,0 +1,90 @@
+import type { ProjectCashFlow } from './types'
+
+export const kitchenRenovationProject: ProjectCashFlow = {
+  projectName: '$45,000 Kitchen Renovation',
+  projectValue: 45000,
+  clientName: 'Sarah & Mike Johnson — 142 Oak Street',
+  milestones: [
+    {
+      id: 'm1',
+      stageName: 'Deposit (15%)',
+      amount: 6750,
+      status: 'paid',
+      completedDate: '2026-05-12',
+    },
+    {
+      id: 'm2',
+      stageName: 'Demo & Prep Complete',
+      amount: 4500,
+      status: 'paid',
+      completedDate: '2026-05-28',
+    },
+    {
+      id: 'm3',
+      stageName: 'Framing Complete',
+      amount: 9000,
+      status: 'invoiced',
+      completedDate: '2026-06-18',
+    },
+    {
+      id: 'm4',
+      stageName: 'Rough-In Plumbing & Electrical',
+      amount: 9450,
+      status: 'pending',
+    },
+    {
+      id: 'm5',
+      stageName: 'Cabinets & Countertops Installed',
+      amount: 9000,
+      status: 'pending',
+    },
+    {
+      id: 'm6',
+      stageName: 'Final Walkthrough & Punch List',
+      amount: 6300,
+      status: 'pending',
+    },
+  ],
+  subcontractorBills: [
+    {
+      id: 's1',
+      trade: 'Demo & Haul-Off',
+      amount: 1100,
+      dueDate: '2026-06-02',
+      status: 'paid',
+      linkedStage: 'Demo & Prep Complete',
+    },
+    {
+      id: 's2',
+      trade: 'Electrical Rough-In',
+      amount: 2900,
+      dueDate: '2026-06-10',
+      status: 'paid',
+      linkedStage: 'Demo & Prep Complete',
+    },
+    {
+      id: 's3',
+      trade: 'Framing',
+      amount: 7200,
+      dueDate: '2026-06-22',
+      status: 'unpaid',
+      linkedStage: 'Framing Complete',
+    },
+    {
+      id: 's4',
+      trade: 'Plumbing',
+      amount: 3850,
+      dueDate: '2026-06-20',
+      status: 'unpaid',
+      linkedStage: 'Rough-In Plumbing & Electrical',
+    },
+    {
+      id: 's5',
+      trade: 'Drywall',
+      amount: 4200,
+      dueDate: '2026-06-28',
+      status: 'unpaid',
+      linkedStage: 'Rough-In Plumbing & Electrical',
+    },
+  ],
+}

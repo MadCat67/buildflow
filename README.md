@@ -17,9 +17,16 @@ All-in-one business management for construction and home renovation companies.
 
 ## Google OAuth setup
 
-1. Create an OAuth 2.0 Client ID (Web application) in Google Cloud Console
-2. Add authorized redirect URI: `http://localhost:3001/api/auth/google/callback`
-3. Copy the Client ID and Client Secret into your `.env` file
+**Use a separate OAuth client for BuildFlow.** Do not reuse credentials from another app (e.g. uni-subs.com) — Google will show that app's name on the sign-in screen and redirects may send users to the wrong site.
+
+1. Go to [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
+2. Create a **new** OAuth 2.0 Client ID (Web application), or use a separate Google Cloud project for BuildFlow
+3. Configure the **OAuth consent screen** with the BuildFlow app name
+4. Add this authorized redirect URI exactly:
+   ```
+   http://localhost:3001/api/auth/google/callback
+   ```
+5. Copy the new Client ID and Client Secret into `.env` (not your other project's credentials)
 
 ## Environment variables
 

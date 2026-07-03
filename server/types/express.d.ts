@@ -1,8 +1,10 @@
-import type { SessionUser } from './auth/passport.js'
+import type { Project } from '../db/schema.js'
 
 declare global {
   namespace Express {
-    interface User extends SessionUser {}
+    interface Request {
+      project?: Project
+    }
   }
 }
 

@@ -3,7 +3,12 @@ import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
+import Projects from './pages/Projects'
+import ProjectDetail from './pages/ProjectDetail'
+import CompanyFinancesPage from './pages/CompanyFinancesPage'
+import MembershipPage from './pages/MembershipPage'
+import AutoMessagesPage from './pages/AutoMessagesPage'
+import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
   return (
@@ -16,7 +21,47 @@ export default function App() {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <Projects />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/company"
+            element={
+              <ProtectedRoute>
+                <CompanyFinancesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/membership"
+            element={
+              <ProtectedRoute>
+                <MembershipPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/messages"
+            element={
+              <ProtectedRoute>
+                <AutoMessagesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects/:projectId"
+            element={
+              <ProtectedRoute>
+                <ProjectDetail />
               </ProtectedRoute>
             }
           />

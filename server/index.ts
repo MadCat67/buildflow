@@ -5,6 +5,8 @@ import connectPgSimple from 'connect-pg-simple'
 import cors from 'cors'
 import passport from './auth/passport.js'
 import authRoutes from './auth/routes.js'
+import projectRoutes from './routes/projects.js'
+import financeRoutes from './routes/finances.js'
 import { migrate } from './db/migrate.js'
 import { pool } from './db/index.js'
 
@@ -18,8 +20,35 @@ async function start() {
     process.exit(1)
   }
 
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  const clientId = process.env.GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+
+  if (!clientId || !clientSecret) {
     console.error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required.')
+    process.exit(1)
+  }
+
+  const placeholders = ['your-google-client-id', 'your-google-client-secret']
+  if (placeholders.includes(clientId) || placeholders.includes(clientSecret)) {
+    console.error(
+      'Google OAuth credentials are still placeholders in .env.\n' +
+        'Create credentials at https://console.cloud.google.com/apis/credentials\n' +
+        'and set GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET to the real values.',
+    )
+    process.exit(1)
+  }
+
+  if (!clientId.endsWith('.apps.googleusercontent.com')) {
+    console.error(
+      'GOOGLE_CLIENT_ID does not look valid (expected to end with .apps.googleusercontent.com).',
+    )
+    process.exit(1)
+  }
+
+  if (!clientSecret.startsWith('GOCSPX-')) {
+    console.error(
+      'GOOGLE_CLIENT_SECRET does not look valid (expected to start with GOCSPX-).',
+    )
     process.exit(1)
   }
 
@@ -31,6 +60,8 @@ async function start() {
   await migrate()
 
   const app = express()
+
+  app.use(express.json())
 
   app.use(
     cors({
@@ -66,9 +97,26 @@ async function start() {
   })
 
   app.use('/api/auth', authRoutes)
+  app.use('/api/projects', projectRoutes)
+  app.use('/api/finances', financeRoutes)
+
+  app.use(
+    (
+      err: Error,
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction,
+    ) => {
+      console.error(err)
+      res.status(500).json({ error: 'Internal server error' })
+    },
+  )
 
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`)
+    console.log(
+      `Google OAuth callback (add this in Google Cloud Console): ${process.env.SERVER_URL}/api/auth/google/callback`,
+    )
   })
 }
 
