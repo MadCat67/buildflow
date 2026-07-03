@@ -84,6 +84,48 @@ export type CreateProjectInput = {
   contractValue: number
 }
 
+export type CalendarConnection = {
+  id: string
+  provider: 'google' | 'outlook'
+  calendarId: string
+  status: 'connected' | 'error'
+  updatedAt: string
+}
+
+export type CalendarEvent = {
+  id: string
+  projectId: string
+  projectName: string
+  clientName: string
+  stageName: string
+  dueDate: string | null
+  completedDate: string | null
+  displayDate: string | null
+  status: MilestoneStatus
+  syncedProviders: ('google' | 'outlook')[]
+}
+
+export type CalendarRecommendation = {
+  id: string
+  projectName: string
+  clientName: string
+  sourceMessage: string
+  suggestion: string
+  currentDate: string | null
+  suggestedDate: string | null
+  milestoneName: string
+  priority: 'high' | 'medium'
+  status: 'pending' | 'applied'
+}
+
+export type CalendarData = {
+  feedUrl: string
+  googleCalendarSubscribeUrl: string
+  connections: CalendarConnection[]
+  events: CalendarEvent[]
+  recommendations: CalendarRecommendation[]
+}
+
 export type UpdateProjectInput = {
   name?: string
   clientName?: string
@@ -163,6 +205,34 @@ export async function getProjectCashflow(id: string): Promise<ProjectCashflow> {
 
 export async function getCompanyFinances(): Promise<CompanyFinances> {
   return request('/finances/company')
+}
+
+export async function getCalendar(): Promise<CalendarData> {
+  return request('/calendar')
+}
+
+export async function disconnectCalendar(
+  provider: 'google' | 'outlook',
+): Promise<{ success: boolean }> {
+  return request('/calendar/disconnect', {
+    method: 'POST',
+    body: JSON.stringify({ provider }),
+  })
+}
+
+export async function syncAllCalendars(): Promise<{ success: boolean; message: string }> {
+  return request('/calendar/sync-all', { method: 'POST' })
+}
+
+export async function applyCalendarRecommendation(
+  id: string,
+): Promise<{
+  success: boolean
+  message: string
+  suggestedDate: string
+  milestoneName: string
+}> {
+  return request(`/calendar/recommendations/${id}/apply`, { method: 'POST' })
 }
 
 export async function updateProject(

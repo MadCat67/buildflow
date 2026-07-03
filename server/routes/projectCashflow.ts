@@ -5,6 +5,7 @@ import { milestones, subcontractorBills } from '../db/cashflowSchema.js'
 import { computeMetrics } from '../lib/cashflow.js'
 import { seedDemoCashflow } from '../lib/demoSeed.js'
 import { sendPaymentRequest } from '../lib/notifications.js'
+import { syncMilestoneToCalendars } from '../lib/calendarSync.js'
 import { getOwnedProject } from '../middleware/requireProject.js'
 
 const router = Router({ mergeParams: true })
@@ -92,6 +93,8 @@ router.post('/milestones', async (req, res, next) => {
       })
       .returning()
 
+    await syncMilestoneToCalendars(project.userId, created, project)
+
     res.status(201).json({ milestone: toMilestoneResponse(created) })
   } catch (error) {
     next(error)
@@ -145,6 +148,8 @@ router.patch('/milestones/:milestoneId', async (req, res, next) => {
       .set(updates)
       .where(eq(milestones.id, milestoneId!))
       .returning()
+
+    await syncMilestoneToCalendars(project.userId, updated, project)
 
     res.json({ milestone: toMilestoneResponse(updated) })
   } catch (error) {
@@ -225,6 +230,7 @@ router.delete('/milestones/:milestoneId', async (req, res, next) => {
       return
     }
 
+    await syncMilestoneToCalendars(project.userId, existing, project, 'delete')
     await db.delete(milestones).where(eq(milestones.id, milestoneId!))
     res.json({ success: true })
   } catch (error) {

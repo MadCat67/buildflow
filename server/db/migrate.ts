@@ -86,4 +86,64 @@ export async function migrate() {
   await pool.query(`
     ALTER TABLE milestones ADD COLUMN IF NOT EXISTS due_date TEXT
   `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS calendar_feed_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS calendar_connections (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL CHECK (provider IN ('google', 'outlook')),
+      calendar_id TEXT NOT NULL DEFAULT 'primary',
+      access_token TEXT,
+      refresh_token TEXT,
+      expires_at TIMESTAMPTZ,
+      status TEXT NOT NULL DEFAULT 'connected' CHECK (status IN ('connected', 'error')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_calendar_connections_user_provider"
+    ON calendar_connections(user_id, provider)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS milestone_calendar_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      milestone_id UUID NOT NULL REFERENCES milestones(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL CHECK (provider IN ('google', 'outlook')),
+      external_event_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_milestone_calendar_events_milestone_provider"
+    ON milestone_calendar_events(milestone_id, provider)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS applied_calendar_recommendations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      recommendation_id TEXT NOT NULL,
+      milestone_id UUID REFERENCES milestones(id) ON DELETE SET NULL,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_applied_calendar_recs_user_rec"
+    ON applied_calendar_recommendations(user_id, recommendation_id)
+  `)
 }

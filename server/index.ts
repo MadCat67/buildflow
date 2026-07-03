@@ -7,6 +7,7 @@ import passport from './auth/passport.js'
 import authRoutes from './auth/routes.js'
 import projectRoutes from './routes/projects.js'
 import financeRoutes from './routes/finances.js'
+import calendarRoutes from './routes/calendar.js'
 import { migrate } from './db/migrate.js'
 import { pool } from './db/index.js'
 
@@ -99,6 +100,7 @@ async function start() {
   app.use('/api/auth', authRoutes)
   app.use('/api/projects', projectRoutes)
   app.use('/api/finances', financeRoutes)
+  app.use('/api/calendar', calendarRoutes)
 
   app.use(
     (

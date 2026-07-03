@@ -8,6 +8,7 @@ import ProjectDetail from './pages/ProjectDetail'
 import CompanyFinancesPage from './pages/CompanyFinancesPage'
 import MembershipPage from './pages/MembershipPage'
 import AutoMessagesPage from './pages/AutoMessagesPage'
+import CalendarPage from './pages/CalendarPage'
 import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
@@ -34,18 +35,26 @@ export default function App() {
             }
           />
           <Route
-            path="/dashboard/membership"
-            element={
-              <ProtectedRoute>
-                <MembershipPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/dashboard/messages"
             element={
               <ProtectedRoute>
                 <AutoMessagesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/calendar"
+            element={
+              <ProtectedRoute>
+                <CalendarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/membership"
+            element={
+              <ProtectedRoute>
+                <MembershipPage />
               </ProtectedRoute>
             }
           />
