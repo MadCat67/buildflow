@@ -146,4 +146,83 @@ export async function migrate() {
     CREATE UNIQUE INDEX IF NOT EXISTS "IDX_applied_calendar_recs_user_rec"
     ON applied_calendar_recommendations(user_id, recommendation_id)
   `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS reminder_settings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      auto_reminders_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      email_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      sms_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      days_before_due TEXT NOT NULL DEFAULT '3,1',
+      escrow_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payment_reminder_log (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      milestone_id UUID NOT NULL REFERENCES milestones(id) ON DELETE CASCADE,
+      tone TEXT NOT NULL CHECK (tone IN ('gentle', 'reminder', 'firm')),
+      channel TEXT NOT NULL CHECK (channel IN ('email', 'sms', 'both')),
+      message_preview TEXT NOT NULL,
+      sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_payment_reminder_log_milestone"
+    ON payment_reminder_log(milestone_id, sent_at DESC)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS milestone_preauth (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      milestone_id UUID NOT NULL UNIQUE REFERENCES milestones(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'authorized', 'released')),
+      payment_method TEXT CHECK (payment_method IN ('card', 'ach')),
+      client_last4 TEXT,
+      amount INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    ALTER TABLE subcontractor_bills ADD COLUMN IF NOT EXISTS milestone_id UUID REFERENCES milestones(id) ON DELETE SET NULL
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subcontractors (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT,
+      trade TEXT NOT NULL,
+      portal_token TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sub_invoice_submissions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      subcontractor_id UUID NOT NULL REFERENCES subcontractors(id) ON DELETE CASCADE,
+      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      milestone_id UUID REFERENCES milestones(id) ON DELETE SET NULL,
+      linked_stage TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      description TEXT,
+      status TEXT NOT NULL DEFAULT 'pending_review' CHECK (status IN ('pending_review', 'approved', 'rejected', 'paid')),
+      bill_id UUID,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
 }

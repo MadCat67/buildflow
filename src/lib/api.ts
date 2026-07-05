@@ -44,12 +44,28 @@ export type SubcontractorBill = {
   dueDate: string
   status: SubBillStatus
   linkedStage: string
+  milestoneId?: string | null
+  payWhenPaidStatus?: 'paid' | 'payable' | 'held' | 'unpaid'
+}
+
+export type PhaseRunway = {
+  milestoneId: string
+  stageName: string
+  milestoneStatus: MilestoneStatus
+  clientIncoming: number
+  clientCollected: number
+  subOwed: number
+  gap: number
+  isCrunch: boolean
+  crunchIn14Days: boolean
+  linkedBillCount: number
 }
 
 export type ProjectCashflow = {
   project: Project
   milestones: Milestone[]
   bills: SubcontractorBill[]
+  phaseRunway?: PhaseRunway[]
 }
 
 export type CompanyFinances = {
@@ -326,5 +342,133 @@ export async function deleteBill(
 ): Promise<void> {
   await request(`/projects/${projectId}/bills/${billId}`, {
     method: 'DELETE',
+  })
+}
+
+export type ReminderSettings = {
+  autoRemindersEnabled: boolean
+  emailEnabled: boolean
+  smsEnabled: boolean
+  daysBeforeDue: string
+  escrowEnabled: boolean
+}
+
+export type ReminderLogEntry = {
+  id: string
+  milestoneId: string
+  projectId: string
+  tone: 'gentle' | 'reminder' | 'firm'
+  channel: 'email' | 'sms' | 'both'
+  messagePreview: string
+  sentAt: string
+}
+
+export type RemindersData = {
+  settings: ReminderSettings
+  log: ReminderLogEntry[]
+  templates: {
+    gentle: { emailSubject: string; emailBody: string; smsBody: string }
+    reminder: { emailSubject: string; emailBody: string; smsBody: string }
+    firm: { emailSubject: string; emailBody: string; smsBody: string }
+  }
+  escalationSchedule: { days: number; tone: string; label: string }[]
+}
+
+export async function getReminders(): Promise<RemindersData> {
+  return request('/reminders')
+}
+
+export async function updateReminderSettings(
+  settings: Partial<ReminderSettings>,
+): Promise<{ settings: ReminderSettings }> {
+  return request('/reminders/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(settings),
+  })
+}
+
+export async function runRemindersNow(): Promise<{
+  success: boolean
+  sentCount: number
+  message: string
+}> {
+  return request('/reminders/run-now', { method: 'POST' })
+}
+
+export type SubcontractorRecord = {
+  id: string
+  projectId: string
+  projectName: string
+  name: string
+  email: string
+  phone: string | null
+  trade: string
+  portalUrl: string
+  createdAt: string
+}
+
+export type SubInvoiceSubmission = {
+  id: string
+  subcontractorId: string
+  projectId: string
+  projectName: string
+  linkedStage: string
+  amount: number
+  description: string | null
+  status: 'pending_review' | 'approved' | 'rejected' | 'paid'
+  createdAt: string
+}
+
+export async function getSubcontractors(): Promise<{
+  subcontractors: SubcontractorRecord[]
+  submissions: SubInvoiceSubmission[]
+}> {
+  return request('/subcontractors')
+}
+
+export async function inviteSubcontractor(input: {
+  projectId: string
+  name: string
+  email: string
+  phone?: string
+  trade: string
+}): Promise<{ subcontractor: { id: string; portalUrl: string; name: string; trade: string } }> {
+  return request('/subcontractors', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function approveSubSubmission(
+  id: string,
+): Promise<{ success: boolean; billId: string }> {
+  return request(`/subcontractors/submissions/${id}/approve`, { method: 'POST' })
+}
+
+export async function rejectSubSubmission(id: string): Promise<{ success: boolean }> {
+  return request(`/subcontractors/submissions/${id}/reject`, { method: 'POST' })
+}
+
+export async function getSubPortal(token: string): Promise<{
+  subcontractor: { name: string; trade: string }
+  project: { name: string; clientName: string }
+  milestones: { id: string; stageName: string; status: string; amount: number }[]
+  submissions: { id: string; linkedStage: string; amount: number; status: string }[]
+}> {
+  return request(`/portal/sub/${token}`)
+}
+
+export async function submitSubInvoice(
+  token: string,
+  input: {
+    linkedStage: string
+    milestoneId?: string
+    amount: number
+    description?: string
+  },
+): Promise<{ submission: { id: string; status: string } }> {
+  return request(`/portal/sub/${token}/invoices`, {
+    method: 'POST',
+    body: JSON.stringify(input),
   })
 }

@@ -1,21 +1,33 @@
 import nodemailer from 'nodemailer'
 import twilio from 'twilio'
+import {
+  buildReminderMessage,
+  resolveReminderTone,
+  shouldSendReminder,
+  type ReminderTone,
+} from './reminderTemplates.js'
 
-type PaymentRequestPayload = {
+export type PaymentRequestPayload = {
   clientName: string
   clientEmail: string | null
   clientPhone: string | null
   projectName: string
+  projectId?: string
+  milestoneId?: string
   stageName: string
   amount: number
   dueDate: string | null
   channels: ('email' | 'sms')[]
+  tone?: ReminderTone
+  paymentLink?: string
+  daysUntilDue?: number | null
 }
 
 type SendResult = {
   emailSent: boolean
   smsSent: boolean
   errors: string[]
+  messagePreview?: string
 }
 
 function formatMoney(amount: number) {
@@ -26,7 +38,19 @@ function formatMoney(amount: number) {
   })
 }
 
-async function sendEmail(payload: PaymentRequestPayload): Promise<void> {
+function buildPaymentLink(projectId: string, milestoneId: string) {
+  const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(
+    /\/$/,
+    '',
+  )
+  return `${clientUrl}/pay/${projectId}/${milestoneId}`
+}
+
+async function sendEmail(
+  payload: PaymentRequestPayload,
+  subject: string,
+  body: string,
+): Promise<void> {
   if (!payload.clientEmail) {
     throw new Error('Client email is not set on this project')
   }
@@ -48,30 +72,15 @@ async function sendEmail(payload: PaymentRequestPayload): Promise<void> {
     auth: { user, pass },
   })
 
-  const dueLine = payload.dueDate
-    ? `Payment was due on ${payload.dueDate}.`
-    : 'Please arrange payment at your earliest convenience.'
-
   await transporter.sendMail({
     from: process.env.SMTP_FROM || user,
     to: payload.clientEmail,
-    subject: `Payment reminder: ${payload.stageName} — ${payload.projectName}`,
-    text: [
-      `Hi ${payload.clientName},`,
-      '',
-      `This is a friendly reminder regarding your milestone payment for ${payload.projectName}.`,
-      '',
-      `Milestone: ${payload.stageName}`,
-      `Amount due: ${formatMoney(payload.amount)}`,
-      dueLine,
-      '',
-      'Thank you,',
-      'BuildFlow',
-    ].join('\n'),
+    subject,
+    text: body,
   })
 }
 
-async function sendSms(payload: PaymentRequestPayload): Promise<void> {
+async function sendSms(payload: PaymentRequestPayload, body: string): Promise<void> {
   if (!payload.clientPhone) {
     throw new Error('Client phone number is not set on this project')
   }
@@ -87,28 +96,45 @@ async function sendSms(payload: PaymentRequestPayload): Promise<void> {
   }
 
   const client = twilio(sid, token)
-  const dueLine = payload.dueDate ? ` Due: ${payload.dueDate}.` : ''
-
   await client.messages.create({
     from,
     to: payload.clientPhone,
-    body: `BuildFlow payment reminder for ${payload.projectName}: ${payload.stageName} — ${formatMoney(payload.amount)}.${dueLine} Reply if you have questions.`,
+    body,
   })
 }
 
 export async function sendPaymentRequest(
   payload: PaymentRequestPayload,
 ): Promise<SendResult> {
+  const tone = payload.tone ?? 'gentle'
+  const paymentLink =
+    payload.paymentLink ??
+    (payload.projectId && payload.milestoneId
+      ? buildPaymentLink(payload.projectId, payload.milestoneId)
+      : '')
+
+  const templates = buildReminderMessage(tone, {
+    clientName: payload.clientName,
+    projectName: payload.projectName,
+    stageName: payload.stageName,
+    amount: payload.amount,
+    dueDate: payload.dueDate,
+    paymentLink,
+    daysUntilDue: payload.daysUntilDue ?? null,
+  })
+
   const result: SendResult = {
     emailSent: false,
     smsSent: false,
     errors: [],
+    messagePreview: templates.smsBody.slice(0, 160),
   }
 
   if (payload.channels.includes('email')) {
     try {
-      await sendEmail(payload)
+      await sendEmail(payload, templates.emailSubject, templates.emailBody)
       result.emailSent = true
+      result.messagePreview = templates.emailBody.slice(0, 200)
     } catch (err) {
       result.errors.push(err instanceof Error ? err.message : 'Email failed')
     }
@@ -116,8 +142,11 @@ export async function sendPaymentRequest(
 
   if (payload.channels.includes('sms')) {
     try {
-      await sendSms(payload)
+      await sendSms(payload, templates.smsBody)
       result.smsSent = true
+      if (!result.emailSent) {
+        result.messagePreview = templates.smsBody
+      }
     } catch (err) {
       result.errors.push(err instanceof Error ? err.message : 'SMS failed')
     }
@@ -129,3 +158,5 @@ export async function sendPaymentRequest(
 
   return result
 }
+
+export { buildPaymentLink, resolveReminderTone, shouldSendReminder }

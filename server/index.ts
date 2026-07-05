@@ -8,7 +8,11 @@ import authRoutes from './auth/routes.js'
 import projectRoutes from './routes/projects.js'
 import financeRoutes from './routes/finances.js'
 import calendarRoutes from './routes/calendar.js'
+import remindersRoutes from './routes/reminders.js'
+import subcontractorsRoutes from './routes/subcontractors.js'
+import subPortalRoutes from './routes/subPortal.js'
 import { migrate } from './db/migrate.js'
+import { startReminderScheduler } from './lib/reminderScheduler.js'
 import { pool } from './db/index.js'
 
 const PgSession = connectPgSimple(session)
@@ -101,6 +105,9 @@ async function start() {
   app.use('/api/projects', projectRoutes)
   app.use('/api/finances', financeRoutes)
   app.use('/api/calendar', calendarRoutes)
+  app.use('/api/reminders', remindersRoutes)
+  app.use('/api/subcontractors', subcontractorsRoutes)
+  app.use('/api/portal/sub', subPortalRoutes)
 
   app.use(
     (
@@ -119,6 +126,7 @@ async function start() {
     console.log(
       `Google OAuth callback (add this in Google Cloud Console): ${process.env.SERVER_URL}/api/auth/google/callback`,
     )
+    startReminderScheduler()
   })
 }
 

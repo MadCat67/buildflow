@@ -25,6 +25,9 @@ export function toVisualizerData(data: ProjectCashflow): ProjectCashFlow {
       dueDate: b.dueDate,
       status: b.status,
       linkedStage: b.linkedStage,
+      milestoneId: b.milestoneId,
+      payWhenPaidStatus: b.payWhenPaidStatus,
     })),
+    phaseRunway: data.phaseRunway,
   }
 }

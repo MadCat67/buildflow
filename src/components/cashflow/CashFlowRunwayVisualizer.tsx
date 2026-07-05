@@ -131,6 +131,73 @@ export default function CashFlowRunwayVisualizer({
         )}
       </section>
 
+      {project.phaseRunway && project.phaseRunway.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="font-display text-lg font-bold text-slate-900">
+            Pay-When-Paid Phase Runway
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Client cash incoming vs. sub bills owed per milestone — spot a crunch
+            14 days before it hits.
+          </p>
+          <div className="mt-4 space-y-3">
+            {project.phaseRunway
+              .filter((p) => p.linkedBillCount > 0 || p.subOwed > 0)
+              .map((phase) => (
+                <div
+                  key={phase.milestoneId}
+                  className={`rounded-xl border p-4 ${
+                    phase.isCrunch
+                      ? 'border-red-200 bg-red-50/50'
+                      : 'border-slate-100 bg-slate-50'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-slate-900">{phase.stageName}</p>
+                      <p className="text-xs text-slate-500 capitalize">
+                        Client milestone: {phase.milestoneStatus}
+                      </p>
+                    </div>
+                    {phase.isCrunch && (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-700">
+                        Cash crunch
+                      </span>
+                    )}
+                    {phase.crunchIn14Days && !phase.isCrunch && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">
+                        Due in 14 days
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-3 text-center text-xs">
+                    <div>
+                      <p className="text-slate-500">Client incoming</p>
+                      <p className="font-bold text-emerald-700">
+                        {formatCurrency(phase.clientIncoming)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Sub owed</p>
+                      <p className="font-bold text-red-700">
+                        {formatCurrency(phase.subOwed)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Gap</p>
+                      <p
+                        className={`font-bold ${phase.gap < 0 ? 'text-red-700' : 'text-emerald-700'}`}
+                      >
+                        {formatCurrency(phase.gap)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
+
       <section className="grid gap-6 lg:grid-cols-2">
         <PipelineTable
           title="Client Inflows"
@@ -445,6 +512,16 @@ function OutflowRow({
               Overdue
             </span>
           )}
+        {bill.payWhenPaidStatus === 'held' && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">
+            Pay when paid
+          </span>
+        )}
+        {bill.payWhenPaidStatus === 'payable' && (
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-800">
+            Ready to pay
+          </span>
+        )}
         <StatusBadge status={bill.status} type="bill" />
       </div>
     </div>

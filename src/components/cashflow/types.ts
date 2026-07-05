@@ -1,5 +1,6 @@
 export type MilestoneStatus = 'paid' | 'invoiced' | 'pending'
 export type SubBillStatus = 'paid' | 'unpaid'
+export type PayWhenPaidStatus = 'paid' | 'payable' | 'held' | 'unpaid'
 
 export type ClientMilestone = {
   id: string
@@ -17,6 +18,21 @@ export type SubcontractorBill = {
   dueDate: string
   status: SubBillStatus
   linkedStage: string
+  milestoneId?: string | null
+  payWhenPaidStatus?: PayWhenPaidStatus
+}
+
+export type PhaseRunway = {
+  milestoneId: string
+  stageName: string
+  milestoneStatus: MilestoneStatus
+  clientIncoming: number
+  clientCollected: number
+  subOwed: number
+  gap: number
+  isCrunch: boolean
+  crunchIn14Days: boolean
+  linkedBillCount: number
 }
 
 export type ProjectCashFlow = {
@@ -25,6 +41,7 @@ export type ProjectCashFlow = {
   clientName: string
   milestones: ClientMilestone[]
   subcontractorBills: SubcontractorBill[]
+  phaseRunway?: PhaseRunway[]
 }
 
 export type CashFlowMetrics = {

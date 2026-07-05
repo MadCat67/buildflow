@@ -9,6 +9,9 @@ import CompanyFinancesPage from './pages/CompanyFinancesPage'
 import MembershipPage from './pages/MembershipPage'
 import AutoMessagesPage from './pages/AutoMessagesPage'
 import CalendarPage from './pages/CalendarPage'
+import PaymentRemindersPage from './pages/PaymentRemindersPage'
+import SubPortalPage from './pages/SubPortalPage'
+import SubPortalPublicPage from './pages/SubPortalPublicPage'
 import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
@@ -18,6 +21,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/portal/sub/:token" element={<SubPortalPublicPage />} />
           <Route
             path="/dashboard"
             element={
@@ -31,6 +35,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <CompanyFinancesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/reminders"
+            element={
+              <ProtectedRoute>
+                <PaymentRemindersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/subs"
+            element={
+              <ProtectedRoute>
+                <SubPortalPage />
               </ProtectedRoute>
             }
           />

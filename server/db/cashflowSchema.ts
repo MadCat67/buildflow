@@ -24,6 +24,9 @@ export const subcontractorBills = pgTable('subcontractor_bills', {
   dueDate: text('due_date').notNull(),
   status: text('status').notNull().$type<'paid' | 'unpaid'>(),
   linkedStage: text('linked_stage').notNull(),
+  milestoneId: uuid('milestone_id').references(() => milestones.id, {
+    onDelete: 'set null',
+  }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
