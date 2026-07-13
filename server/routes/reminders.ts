@@ -1,38 +1,23 @@
 import { Router } from 'express'
 import { desc, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import {
-  paymentReminderLog,
-  reminderSettings,
-} from '../db/remindersSchema.js'
+import { paymentReminderLog } from '../db/remindersSchema.js'
 import { requireAuth } from '../middleware/requireAuth.js'
 import { processAutomatedReminders } from '../lib/reminderScheduler.js'
 import { buildReminderMessage } from '../lib/reminderTemplates.js'
+import {
+  ensureReminderSettings,
+  patchReminderSettings,
+  toReminderSettingsResponse,
+} from '../lib/reminderSettingsLib.js'
 
 const router = Router()
 router.use(requireAuth)
 
-async function ensureSettings(userId: string) {
-  const [existing] = await db
-    .select()
-    .from(reminderSettings)
-    .where(eq(reminderSettings.userId, userId))
-    .limit(1)
-
-  if (existing) return existing
-
-  const [created] = await db
-    .insert(reminderSettings)
-    .values({ userId })
-    .returning()
-
-  return created
-}
-
 router.get('/', async (req, res, next) => {
   try {
     const userId = req.user!.id
-    const settings = await ensureSettings(userId)
+    const settings = await ensureReminderSettings(userId)
 
     const log = await db
       .select()
@@ -62,13 +47,7 @@ router.get('/', async (req, res, next) => {
     })
 
     res.json({
-      settings: {
-        autoRemindersEnabled: settings.autoRemindersEnabled,
-        emailEnabled: settings.emailEnabled,
-        smsEnabled: settings.smsEnabled,
-        daysBeforeDue: settings.daysBeforeDue,
-        escrowEnabled: settings.escrowEnabled,
-      },
+      settings: toReminderSettingsResponse(settings),
       log: log.map((entry) => ({
         id: entry.id,
         milestoneId: entry.milestoneId,
@@ -107,46 +86,8 @@ router.get('/', async (req, res, next) => {
 router.patch('/settings', async (req, res, next) => {
   try {
     const userId = req.user!.id
-    await ensureSettings(userId)
-
-    const {
-      autoRemindersEnabled,
-      emailEnabled,
-      smsEnabled,
-      daysBeforeDue,
-      escrowEnabled,
-    } = req.body
-
-    const updates: Partial<typeof reminderSettings.$inferInsert> = {
-      updatedAt: new Date(),
-    }
-    if (autoRemindersEnabled !== undefined) {
-      updates.autoRemindersEnabled = !!autoRemindersEnabled
-      if (!autoRemindersEnabled) {
-        updates.emailEnabled = false
-        updates.smsEnabled = false
-      }
-    }
-    if (emailEnabled !== undefined) updates.emailEnabled = !!emailEnabled
-    if (smsEnabled !== undefined) updates.smsEnabled = !!smsEnabled
-    if (daysBeforeDue !== undefined) updates.daysBeforeDue = String(daysBeforeDue)
-    if (escrowEnabled !== undefined) updates.escrowEnabled = !!escrowEnabled
-
-    const [updated] = await db
-      .update(reminderSettings)
-      .set(updates)
-      .where(eq(reminderSettings.userId, userId))
-      .returning()
-
-    res.json({
-      settings: {
-        autoRemindersEnabled: updated.autoRemindersEnabled,
-        emailEnabled: updated.emailEnabled,
-        smsEnabled: updated.smsEnabled,
-        daysBeforeDue: updated.daysBeforeDue,
-        escrowEnabled: updated.escrowEnabled,
-      },
-    })
+    const settings = await patchReminderSettings(userId, req.body)
+    res.json({ settings })
   } catch (error) {
     next(error)
   }

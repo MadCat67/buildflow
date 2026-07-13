@@ -225,4 +225,58 @@ export async function migrate() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
+
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT
+  `)
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS business_phone TEXT
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS message_contacts (
+      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      contact_email TEXT,
+      contact_phone TEXT,
+      gmail_access_token TEXT,
+      gmail_refresh_token TEXT,
+      gmail_expires_at TIMESTAMPTZ,
+      gmail_status TEXT DEFAULT 'not_connected',
+      last_gmail_sync_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS inbox_messages (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+      external_id TEXT,
+      channel TEXT NOT NULL CHECK (channel IN ('email', 'sms')),
+      client_name TEXT NOT NULL,
+      client_email TEXT,
+      client_phone TEXT,
+      sender_address TEXT,
+      subject TEXT,
+      body TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'sent')),
+      ai_draft TEXT,
+      draft_body TEXT,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      sent_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_inbox_messages_user_id" ON inbox_messages(user_id, received_at DESC)
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_inbox_messages_user_external"
+    ON inbox_messages(user_id, external_id)
+    WHERE external_id IS NOT NULL
+  `)
 }

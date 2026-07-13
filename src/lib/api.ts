@@ -395,6 +395,40 @@ export async function runRemindersNow(): Promise<{
   return request('/reminders/run-now', { method: 'POST' })
 }
 
+export type AppSettings = {
+  company: {
+    companyName: string
+    businessPhone: string
+  }
+  notifications: ReminderSettings
+  integrations: {
+    googleCalendar: 'connected' | 'not_connected'
+    outlookCalendar: 'connected' | 'not_connected'
+    emailDelivery: 'configured' | 'not_configured'
+    smsDelivery: 'configured' | 'not_configured'
+    quickbooks: 'not_connected'
+  }
+}
+
+export async function getSettings(): Promise<AppSettings> {
+  return request('/settings')
+}
+
+export async function updateSettings(input: {
+  companyName?: string
+  businessPhone?: string
+  notifications?: Partial<ReminderSettings>
+}): Promise<AppSettings> {
+  return request('/settings', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      companyName: input.companyName,
+      businessPhone: input.businessPhone,
+      notifications: input.notifications,
+    }),
+  })
+}
+
 export type SubcontractorRecord = {
   id: string
   projectId: string
@@ -471,4 +505,98 @@ export async function submitSubInvoice(
     method: 'POST',
     body: JSON.stringify(input),
   })
+}
+
+export type InboxMessage = {
+  id: string
+  projectId: string | null
+  projectName: string
+  clientName: string
+  channel: 'email' | 'sms'
+  body: string
+  subject: string | null
+  receivedAt: string
+  receivedAtIso: string
+  status: 'pending' | 'approved' | 'sent'
+  aiDraft: string
+  draftBody: string
+  clientEmail: string | null
+  clientPhone: string | null
+}
+
+export type MessagesData = {
+  contact: { email: string; phone: string }
+  integrations: {
+    gmail: 'connected' | 'not_connected'
+    emailSend: 'configured' | 'not_configured'
+    smsSend: 'configured' | 'not_configured'
+    ai: 'configured' | 'fallback'
+    lastGmailSyncAt: string | null
+  }
+  messages: InboxMessage[]
+}
+
+export async function getMessages(): Promise<MessagesData> {
+  return request('/messages')
+}
+
+export async function updateMessageContact(input: {
+  email?: string
+  phone?: string
+}): Promise<{ contact: { email: string; phone: string } }> {
+  return request('/messages/contact', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function syncMessages(): Promise<{
+  success: boolean
+  seeded: number
+  gmailSynced: number
+  gmailConnected: boolean
+}> {
+  return request('/messages/sync', { method: 'POST' })
+}
+
+export function getGmailAuthUrl(): string {
+  const serverUrl = import.meta.env.VITE_SERVER_URL as string | undefined
+  if (serverUrl) {
+    return `${serverUrl.replace(/\/$/, '')}/api/messages/oauth/gmail`
+  }
+  return `${API_BASE}/messages/oauth/gmail`
+}
+
+export async function regenerateMessageDraft(
+  id: string,
+): Promise<{ message: { aiDraft: string; draftBody: string } }> {
+  return request(`/messages/${id}/draft`, { method: 'POST' })
+}
+
+export async function saveMessageDraft(
+  id: string,
+  draftBody: string,
+): Promise<{ draftBody: string }> {
+  return request(`/messages/${id}/draft`, {
+    method: 'PATCH',
+    body: JSON.stringify({ draftBody }),
+  })
+}
+
+export async function approveMessage(
+  id: string,
+): Promise<{ status: string }> {
+  return request(`/messages/${id}/approve`, { method: 'POST' })
+}
+
+export async function sendMessage(
+  id: string,
+): Promise<{
+  success: boolean
+  status: string
+  emailSent: boolean
+  smsSent: boolean
+  warnings: string[]
+}> {
+  return request(`/messages/${id}/send`, { method: 'POST' })
 }

@@ -2,6 +2,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 import * as schema from './schema.js'
 import * as cashflowSchema from './cashflowSchema.js'
+import * as messagesSchema from './messagesSchema.js'
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
@@ -10,5 +11,7 @@ const pool = new pg.Pool({
     : { rejectUnauthorized: false },
 })
 
-export const db = drizzle(pool, { schema: { ...schema, ...cashflowSchema } })
+export const db = drizzle(pool, {
+  schema: { ...schema, ...cashflowSchema, ...messagesSchema },
+})
 export { pool }

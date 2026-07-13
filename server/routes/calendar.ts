@@ -16,6 +16,12 @@ import {
   syncMilestoneToCalendars,
 } from '../lib/calendarSync.js'
 import { requireAuth } from '../middleware/requireAuth.js'
+import { getScheduleMessagesForUser } from '../lib/inboxSync.js'
+import {
+  buildRecommendationsFromInbox,
+  findMilestoneForRecommendation as matchMilestoneForRec,
+  findProjectForRecommendation as matchProjectForRec,
+} from '../lib/calendarRecommendations.js'
 
 const router = Router()
 
@@ -197,7 +203,7 @@ async function ensureFeedToken(userId: string): Promise<string> {
   return token
 }
 
-const AI_RECOMMENDATIONS = [
+const AI_RECOMMENDATIONS_FALLBACK = [
   {
     id: 'rec-1',
     projectName: 'Kitchen Renovation',
@@ -240,28 +246,26 @@ const AI_RECOMMENDATIONS = [
   },
 ]
 
-function findProjectForRecommendation(
+async function getRecommendationsForUser(
+  userId: string,
   userProjects: (typeof projects.$inferSelect)[],
-  rec: (typeof AI_RECOMMENDATIONS)[number],
-) {
-  return userProjects.find(
-    (p) =>
-      p.name === rec.projectName ||
-      p.name.includes(rec.projectName) ||
-      rec.projectName.includes(p.name.replace(/^\$[\d,]+\s+/, '')),
-  )
-}
-
-function findMilestoneForRecommendation(
   milestoneRows: (typeof milestones.$inferSelect)[],
-  rec: (typeof AI_RECOMMENDATIONS)[number],
+  appliedIds: Set<string>,
 ) {
-  return milestoneRows.find(
-    (m) =>
-      m.stageName === rec.milestoneName ||
-      m.stageName.includes(rec.milestoneName) ||
-      rec.milestoneName.includes(m.stageName),
+  const inboxMessages = await getScheduleMessagesForUser(userId)
+  const fromInbox = buildRecommendationsFromInbox(
+    inboxMessages,
+    userProjects,
+    milestoneRows,
+    appliedIds,
   )
+
+  if (fromInbox.length > 0) return fromInbox
+
+  return AI_RECOMMENDATIONS_FALLBACK.map((rec) => ({
+    ...rec,
+    status: appliedIds.has(rec.id) ? ('applied' as const) : rec.status,
+  }))
 }
 
 router.get('/', async (req, res, next) => {
@@ -330,10 +334,12 @@ router.get('/', async (req, res, next) => {
 
     const appliedIds = new Set(applied.map((a) => a.recommendationId))
 
-    const recommendations = AI_RECOMMENDATIONS.map((rec) => ({
-      ...rec,
-      status: appliedIds.has(rec.id) ? ('applied' as const) : rec.status,
-    }))
+    const recommendations = await getRecommendationsForUser(
+      userId,
+      userProjects,
+      milestoneRows,
+      appliedIds,
+    )
 
     res.json({
       feedUrl,
@@ -407,7 +413,30 @@ router.post('/disconnect', async (req, res, next) => {
 router.post('/recommendations/:id/apply', async (req, res, next) => {
   try {
     const userId = req.user!.id
-    const rec = AI_RECOMMENDATIONS.find((r) => r.id === req.params.id)
+
+    const userProjects = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.userId, userId))
+
+    const projectIds = userProjects.map((p) => p.id)
+    const milestoneRows =
+      projectIds.length > 0 ? await db.select().from(milestones) : []
+
+    const applied = await db
+      .select({ recommendationId: appliedCalendarRecommendations.recommendationId })
+      .from(appliedCalendarRecommendations)
+      .where(eq(appliedCalendarRecommendations.userId, userId))
+
+    const appliedIds = new Set(applied.map((a) => a.recommendationId))
+    const recommendations = await getRecommendationsForUser(
+      userId,
+      userProjects,
+      milestoneRows,
+      appliedIds,
+    )
+
+    const rec = recommendations.find((r) => r.id === req.params.id)
     if (!rec || !rec.suggestedDate) {
       res.status(404).json({ error: 'Recommendation not found' })
       return
@@ -429,12 +458,7 @@ router.post('/recommendations/:id/apply', async (req, res, next) => {
       return
     }
 
-    const userProjects = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.userId, userId))
-
-    const project = findProjectForRecommendation(userProjects, rec)
+    const project = matchProjectForRec(userProjects, rec)
     if (!project) {
       res.status(404).json({
         error: `Project "${rec.projectName}" not found. Add the sample kitchen project first.`,
@@ -442,12 +466,12 @@ router.post('/recommendations/:id/apply', async (req, res, next) => {
       return
     }
 
-    const milestoneRows = await db
+    const projectMilestones = await db
       .select()
       .from(milestones)
       .where(eq(milestones.projectId, project.id))
 
-    const milestone = findMilestoneForRecommendation(milestoneRows, rec)
+    const milestone = matchMilestoneForRec(projectMilestones, rec, project.id)
     if (!milestone) {
       res.status(404).json({
         error: `Milestone "${rec.milestoneName}" not found on ${project.name}`,

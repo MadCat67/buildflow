@@ -11,6 +11,8 @@ import calendarRoutes from './routes/calendar.js'
 import remindersRoutes from './routes/reminders.js'
 import subcontractorsRoutes from './routes/subcontractors.js'
 import subPortalRoutes from './routes/subPortal.js'
+import settingsRoutes from './routes/settings.js'
+import messagesRoutes from './routes/messages.js'
 import { migrate } from './db/migrate.js'
 import { startReminderScheduler } from './lib/reminderScheduler.js'
 import { pool } from './db/index.js'
@@ -67,6 +69,7 @@ async function start() {
   const app = express()
 
   app.use(express.json())
+  app.use(express.urlencoded({ extended: true }))
 
   app.use(
     cors({
@@ -108,6 +111,8 @@ async function start() {
   app.use('/api/reminders', remindersRoutes)
   app.use('/api/subcontractors', subcontractorsRoutes)
   app.use('/api/portal/sub', subPortalRoutes)
+  app.use('/api/settings', settingsRoutes)
+  app.use('/api/messages', messagesRoutes)
 
   app.use(
     (
